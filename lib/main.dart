@@ -1,15 +1,19 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // 1. Import the package
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:urbanwatch_mobile/screens/isssue_detail_screen.dart';
 
-// 2. Make the main function async and load the .env file
 Future<void> main() async {
-  // Ensure that plugin services are initialized so that `dotenv.load()` can be called before `runApp()`
   WidgetsFlutterBinding.ensureInitialized();
-  // Load the .env file
   await dotenv.load(fileName: ".env");
+
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+  );
+
   runApp(const UrbanWatchApp());
 }
 
@@ -47,19 +51,19 @@ class ReportLauncherScreen extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Photo Library'),
-                onTap: () {
-                  // Pass the context from the builder, which is always valid
-                  _pickImage(bc, ImageSource.gallery);
-                  Navigator.of(context).pop();
+                // --- THIS IS THE FIX ---
+                onTap: () async {
+                  Navigator.of(context).pop(); // 1. Close the sheet first
+                  await _pickImage(context, ImageSource.gallery); // 2. Then await the result
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.photo_camera),
                 title: const Text('Camera'),
-                onTap: () {
-                  // Pass the context from the builder
-                  _pickImage(bc, ImageSource.camera);
-                  Navigator.of(context).pop();
+                // --- THIS IS THE FIX ---
+                onTap: () async {
+                  Navigator.of(context).pop(); // 1. Close the sheet first
+                  await _pickImage(context, ImageSource.camera); // 2. Then await the result
                 },
               ),
             ],
@@ -75,7 +79,6 @@ class ReportLauncherScreen extends StatelessWidget {
     try {
       final pickedFile = await picker.pickImage(source: source);
 
-      // After the 'await', check if the widget is still mounted before using its context.
       if (pickedFile != null && context.mounted) {
         Navigator.push(
           context,
@@ -88,7 +91,6 @@ class ReportLauncherScreen extends StatelessWidget {
         );
       }
     } catch (e) {
-      // Also check if the context is mounted before showing a SnackBar
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to pick image: $e')),
