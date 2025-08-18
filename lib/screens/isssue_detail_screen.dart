@@ -2,10 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // 1. Import Supabase
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:urbanwatch_mobile/screens/confirmation_screen.dart';
+import 'package:urbanwatch_mobile/widgets/app_drawer.dart'; // 1. Import the AppDrawer
 
 class IssueDetailScreen extends StatefulWidget {
   final File imageFile;
@@ -22,15 +24,11 @@ class IssueDetailScreen extends StatefulWidget {
 }
 
 class _IssueDetailScreenState extends State<IssueDetailScreen> {
-  final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
-  final _dateController = TextEditingController();
-  final _timeController = TextEditingController();
 
-  bool _isAILoading = false;
   bool _isLocationLoading = false;
-  bool _isSubmitting = false; // For the final submission loading state
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -40,48 +38,44 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
 
   @override
   void dispose() {
-    _titleController.dispose();
     _descriptionController.dispose();
     _locationController.dispose();
-    _dateController.dispose();
-    _timeController.dispose();
     super.dispose();
   }
 
   /// Initializes the form fields automatically.
   Future<void> _initializeForm() async {
-    final now = DateTime.now();
-    _dateController.text = DateFormat.yMMMMd().format(now);
-    _timeController.text = DateFormat.jm().format(now);
-    _fetchAIDetails();
+    // Auto-fetch location if the image was taken with the camera
     if (widget.imageSource == ImageSource.camera) {
       _getCurrentLocation();
     }
-  }
-
-  /// Fetches title and description from the placeholder AI service.
-  Future<void> _fetchAIDetails() async {
-    setState(() => _isAILoading = true);
-    final apiBaseUrl = dotenv.env['AI_API_BASE_URL'];
-    if (apiBaseUrl == null || apiBaseUrl.isEmpty) {
-      _titleController.text = "API URL not found";
-      _descriptionController.text = "Please check your .env file setup.";
-      setState(() => _isAILoading = false);
-      return;
-    }
-    // Using a fake response for now
-    await Future.delayed(const Duration(seconds: 2));
-    _titleController.text = "Overflowing Public Bin";
-    _descriptionController.text = "Public trash bin is full and needs to be emptied.";
-    setState(() => _isAILoading = false);
   }
 
   /// Gets the current GPS location and autofills the location field.
   Future<void> _getCurrentLocation() async {
     setState(() => _isLocationLoading = true);
     try {
-      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      _locationController.text = 'Lat: ${position.latitude.toStringAsFixed(4)}, Lon: ${position.longitude.toStringAsFixed(4)}';
+      // First, check for permissions
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _locationController.text = 'Location permissions are denied.';
+          setState(() => _isLocationLoading = false);
+          return;
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        _locationController.text = 'Location permissions are permanently denied.';
+        setState(() => _isLocationLoading = false);
+        return;
+      }
+
+      // If permissions are granted, get the location
+      final position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+      _locationController.text =
+          'Lat: ${position.latitude.toStringAsFixed(4)}, Lon: ${position.longitude.toStringAsFixed(4)}';
     } catch (e) {
       _locationController.text = 'Could not get location: $e';
     } finally {
@@ -93,20 +87,31 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
   Future<String?> _uploadImageToSupabase(File imageFile) async {
     try {
       final supabase = Supabase.instance.client;
-      final String fileName = 'public/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final String fileName =
+          'public/${DateTime.now().millisecondsSinceEpoch}.jpg';
       await supabase.storage.from('issues_bucket').upload(fileName, imageFile);
-      final String publicUrl = supabase.storage.from('issues_bucket').getPublicUrl(fileName);
+      final String publicUrl =
+          supabase.storage.from('issues_bucket').getPublicUrl(fileName);
       return publicUrl;
     } catch (e) {
-      print("Error uploading image to Supabase: $e");
+      debugPrint("Error uploading image to Supabase: $e");
       return null;
     }
   }
 
   /// Handles the final submission of the report.
   Future<void> _submitFinalReport() async {
-    // --- THIS IS THE FIX ---
-    // Capture the context-dependent objects before the async gap.
+    if (_locationController.text.isEmpty ||
+        _descriptionController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in all fields.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
@@ -114,76 +119,141 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
 
     final imageUrl = await _uploadImageToSupabase(widget.imageFile);
 
-    // Now, use the captured objects. The 'mounted' check is still good practice.
     if (!mounted) return;
 
     if (imageUrl != null) {
-      print('Image uploaded successfully! URL: $imageUrl');
-      // TODO: Here you would save all the form data (title, description, location, imageUrl) to your database (e.g., Supabase database).
+      // TODO: Save all data to your database and get the real Report ID
+      debugPrint('Image uploaded successfully! URL: $imageUrl');
       
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('Report submitted successfully!'), backgroundColor: Colors.green),
+      final now = DateTime.now();
+
+      navigator.pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => ConfirmationScreen(
+            // Using placeholder data for now
+            reportId: 'RE1234ABC256',
+            date: DateFormat.yMMMMd().format(now),
+            time: DateFormat.jm().format(now),
+          ),
+        ),
       );
-      navigator.pop(); // Go back to the home screen
     } else {
       scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('Image upload failed. Please try again.'), backgroundColor: Colors.red),
+        const SnackBar(
+            content: Text('Image upload failed. Please try again.'),
+            backgroundColor: Colors.red),
       );
     }
 
     setState(() => _isSubmitting = false);
   }
 
-
   @override
   Widget build(BuildContext context) {
+    // Updated Colors
+    const Color backgroundColor = Color(0xFFF1F5F9);
+    const Color textColor = Color.fromARGB(255, 0, 0, 0);
+    const Color buttonColor = Color(0xFF36597D);
+
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Confirm Issue Details'),
-        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: textColor, size: 30),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.close, color: textColor, size: 30),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
       ),
+      // --- THIS IS THE FIX ---
+      // 2. Add the AppDrawer to the Scaffold
+      drawer: const AppDrawer(),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.file(widget.imageFile, height: 250, width: double.infinity, fit: BoxFit.cover),
+            // Image Preview - Reduced height
+            Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.file(
+                  widget.imageFile,
+                  height: 220, // Reduced height
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
-            const SizedBox(height: 24),
-            _buildTextField(controller: _titleController, label: 'Title', icon: Icons.title, isLoading: _isAILoading),
-            const SizedBox(height: 16),
-            _buildTextField(controller: _descriptionController, label: 'Description', icon: Icons.description, isLoading: _isAILoading, maxLines: 4),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24), // Reduced spacing
+
+            // Location Field
+            Text(
+              'Location',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 22,
+                fontWeight: FontWeight.normal, // Updated font weight
+                color: textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
             _buildTextField(
               controller: _locationController,
-              label: 'Location',
-              icon: Icons.location_on,
+              hintText: 'Enter location or use GPS',
               isLoading: _isLocationLoading,
-              suffixIcon: widget.imageSource == ImageSource.gallery ? IconButton(icon: const Icon(Icons.my_location), onPressed: _getCurrentLocation) : null,
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.my_location, color: textColor),
+                onPressed: _getCurrentLocation,
+              ),
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: _buildTextField(controller: _dateController, label: 'Date', icon: Icons.calendar_today, readOnly: true)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildTextField(controller: _timeController, label: 'Time', icon: Icons.access_time, readOnly: true)),
-              ],
+            const SizedBox(height: 16), // Reduced spacing
+
+            // Description Field
+            Text(
+              'Description',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 22,
+                fontWeight: FontWeight.normal, // Updated font weight
+                color: textColor,
+              ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 8),
+            _buildTextField(
+              controller: _descriptionController,
+              hintText: 'Describe the issue...',
+              maxLines: 4, // Reduced max lines slightly
+            ),
+            const SizedBox(height: 24), // Reduced spacing
+
+            // Submit Button
             if (_isSubmitting)
               const Center(child: CircularProgressIndicator())
             else
-              ElevatedButton.icon(
-                icon: const Icon(Icons.send),
-                label: const Text('Submit Final Report'),
-                onPressed: _submitFinalReport,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  textStyle: const TextStyle(fontSize: 18),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _submitFinalReport,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: buttonColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16), // Reduced padding
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    textStyle: GoogleFonts.playfairDisplay(
+                      fontSize: 20,
+                      fontWeight: FontWeight.normal, // Updated font weight
+                    ),
+                  ),
+                  child: const Text('Submit'),
                 ),
               ),
           ],
@@ -192,17 +262,43 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
     );
   }
 
-  Widget _buildTextField({required TextEditingController controller, required String label, required IconData icon, bool isLoading = false, bool readOnly = false, int maxLines = 1, Widget? suffixIcon}) {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    bool isLoading = false,
+    int maxLines = 1,
+    Widget? suffixIcon,
+  }) {
     return TextField(
       controller: controller,
-      readOnly: readOnly,
       maxLines: maxLines,
+      // Use a standard font for the input text, overriding the theme.
+      style: GoogleFonts.roboto(color: const Color(0xFF333742)),
       decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        suffixIcon: isLoading ? const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(strokeWidth: 2)) : suffixIcon,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        hintText: hintText,
+        hintStyle: TextStyle(color: const Color(0xFF333742).withAlpha(150)),
         filled: true,
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF4A6572), width: 2),
+        ),
+        suffixIcon: isLoading
+            ? const Padding(
+                padding: EdgeInsets.all(12.0),
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : suffixIcon,
       ),
     );
   }
