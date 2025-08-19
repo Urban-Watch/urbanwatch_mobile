@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:urbanwatch_mobile/main.dart'; // Import your main.dart to access the home screen
+import 'package:urbanwatch_mobile/main.dart';
+import 'package:urbanwatch_mobile/widgets/app_drawer.dart'; // 1. Import the AppDrawer
 
 class ConfirmationScreen extends StatelessWidget {
   final String reportId;
@@ -16,7 +17,7 @@ class ConfirmationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color backgroundColor = Color.fromARGB(255, 255, 255, 255);
+    const Color backgroundColor = Color(0xFFF1F5F9);
     const Color textColor = Color.fromARGB(255, 0, 0, 0);
     const Color buttonColor = Color.fromARGB(255, 0, 0, 0);
     const Color checkCircleColor = Color.fromARGB(255, 65, 176, 55);
@@ -34,7 +35,9 @@ class ConfirmationScreen extends StatelessWidget {
         ),
         automaticallyImplyLeading: false, // Removes the default back button
       ),
-      drawer: const Drawer(),
+      // --- THIS IS THE FIX ---
+      // 2. Replaced the placeholder Drawer with the AppDrawer
+      drawer: const AppDrawer(),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
         child: Column(
@@ -106,19 +109,15 @@ class ConfirmationScreen extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  textStyle: GoogleFonts.playfairDisplay(
-                    fontSize: 20,
-                    fontWeight: FontWeight.normal,
+                ),
+                child: Text(
+                  'Back',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
                   ),
                 ),
-                  child: Text(
-                    'Back',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500, // Updated font weight
-                      color: Colors.white,
-                    ),
-                  ),
               ),
             ),
             const SizedBox(height: 20),
@@ -128,21 +127,24 @@ class ConfirmationScreen extends StatelessWidget {
     );
   }
 
+  // --- FONT FIX ---
+  // Updated fonts to be consistent (Inter)
   Widget _buildReportDetailRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
-          style: GoogleFonts.playfairDisplay(
+          style: GoogleFonts.inter(
             fontSize: 16,
             color: const Color.fromARGB(255, 0, 0, 0),
           ),
         ),
         Text(
           value,
-          style: GoogleFonts.roboto(
+          style: GoogleFonts.inter(
             fontSize: 16,
+            fontWeight: FontWeight.bold,
             color: const Color.fromARGB(255, 0, 0, 0),
           ),
         ),
