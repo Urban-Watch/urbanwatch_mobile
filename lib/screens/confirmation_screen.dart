@@ -16,10 +16,10 @@ class ConfirmationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color backgroundColor = Color(0xFFF1F5F9);
+    const Color backgroundColor = Color.fromARGB(255, 255, 255, 255);
     const Color textColor = Color.fromARGB(255, 0, 0, 0);
-    const Color buttonColor = Color(0xFF36597D);
-    const Color checkCircleColor = Color(0xFFB8CCE0);
+    const Color buttonColor = Color.fromARGB(255, 0, 0, 0);
+    const Color checkCircleColor = Color.fromARGB(255, 65, 176, 55);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -67,9 +67,9 @@ class ConfirmationScreen extends StatelessWidget {
             const SizedBox(height: 24),
             Text(
               'Thank you reporting.',
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 24,
-                fontWeight: FontWeight.normal,
+              style: GoogleFonts.inter(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
                 color: textColor,
               ),
             ),
@@ -77,7 +77,7 @@ class ConfirmationScreen extends StatelessWidget {
             Text(
               "You're making a real\ndifference in your community",
               textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.inter(
                 fontSize: 16,
                 color: textColor.withAlpha(110),
               ),
@@ -111,7 +111,14 @@ class ConfirmationScreen extends StatelessWidget {
                     fontWeight: FontWeight.normal,
                   ),
                 ),
-                child: const Text('Go Back'),
+                  child: Text(
+                    'Back',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500, // Updated font weight
+                      color: Colors.white,
+                    ),
+                  ),
               ),
             ),
             const SizedBox(height: 20),

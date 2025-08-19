@@ -30,7 +30,7 @@ class UrbanWatchApp extends StatelessWidget {
       theme: ThemeData(
         // Using Playfair Display as the default font family
         fontFamily: GoogleFonts.playfairDisplay().fontFamily,
-        scaffoldBackgroundColor: const Color(0xFFE0E5EC), // Neumorphic background
+        scaffoldBackgroundColor: Colors.white, // Neumorphic background
         visualDensity: VisualDensity.adaptivePlatformDensity,
         useMaterial3: true,
       ),
@@ -150,12 +150,12 @@ class ReportLauncherScreen extends StatelessWidget {
                 width: 180,
                 height: 180,
                 decoration: BoxDecoration(
-                  color: Color(0xFFE0E5EC),
+                  color: Color.fromARGB(255, 255, 255, 255),
                   shape: BoxShape.circle,
                   boxShadow: [
                     // Darker shadow on the bottom right
                     BoxShadow(
-                      color: Color(0xFF68839E).withAlpha(90), // Replaced withOpacity(0.15)
+                      color: Color.fromARGB(255, 136, 164, 192).withAlpha(90), // Replaced withOpacity(0.15)
                       offset: const Offset(6, 6),
                       blurRadius: 24,
                     ),

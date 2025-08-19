@@ -66,14 +66,16 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
         }
       }
       if (permission == LocationPermission.deniedForever) {
-        _locationController.text = 'Location permissions are permanently denied.';
+        _locationController.text =
+            'Location permissions are permanently denied.';
         setState(() => _isLocationLoading = false);
         return;
       }
 
       // If permissions are granted, get the location
       final position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+        desiredAccuracy: LocationAccuracy.high,
+      );
       _locationController.text =
           'Lat: ${position.latitude.toStringAsFixed(4)}, Lon: ${position.longitude.toStringAsFixed(4)}';
     } catch (e) {
@@ -90,8 +92,9 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
       final String fileName =
           'public/${DateTime.now().millisecondsSinceEpoch}.jpg';
       await supabase.storage.from('issues_bucket').upload(fileName, imageFile);
-      final String publicUrl =
-          supabase.storage.from('issues_bucket').getPublicUrl(fileName);
+      final String publicUrl = supabase.storage
+          .from('issues_bucket')
+          .getPublicUrl(fileName);
       return publicUrl;
     } catch (e) {
       debugPrint("Error uploading image to Supabase: $e");
@@ -124,7 +127,7 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
     if (imageUrl != null) {
       // TODO: Save all data to your database and get the real Report ID
       debugPrint('Image uploaded successfully! URL: $imageUrl');
-      
+
       final now = DateTime.now();
 
       navigator.pushReplacement(
@@ -140,8 +143,9 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
     } else {
       scaffoldMessenger.showSnackBar(
         const SnackBar(
-            content: Text('Image upload failed. Please try again.'),
-            backgroundColor: Colors.red),
+          content: Text('Image upload failed. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
 
@@ -151,9 +155,9 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
   @override
   Widget build(BuildContext context) {
     // Updated Colors
-    const Color backgroundColor = Color(0xFFF1F5F9);
+    const Color backgroundColor = Color.fromARGB(255, 255, 255, 255);
     const Color textColor = Color.fromARGB(255, 0, 0, 0);
-    const Color buttonColor = Color(0xFF36597D);
+    const Color buttonColor = Color.fromARGB(255, 0, 0, 0);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -194,13 +198,12 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
               ),
             ),
             const SizedBox(height: 24), // Reduced spacing
-
             // Location Field
             Text(
               'Location',
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 22,
-                fontWeight: FontWeight.normal, // Updated font weight
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w500, // Updated font weight
                 color: textColor,
               ),
             ),
@@ -215,13 +218,12 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
               ),
             ),
             const SizedBox(height: 16), // Reduced spacing
-
             // Description Field
             Text(
               'Description',
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 22,
-                fontWeight: FontWeight.normal, // Updated font weight
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w500, // Updated font weight
                 color: textColor,
               ),
             ),
@@ -232,7 +234,6 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
               maxLines: 4, // Reduced max lines slightly
             ),
             const SizedBox(height: 24), // Reduced spacing
-
             // Submit Button
             if (_isSubmitting)
               const Center(child: CircularProgressIndicator())
@@ -244,7 +245,9 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: buttonColor,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16), // Reduced padding
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                    ), // Reduced padding
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -253,7 +256,14 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
                       fontWeight: FontWeight.normal, // Updated font weight
                     ),
                   ),
-                  child: const Text('Submit'),
+                  child: Text(
+                    'Submit',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500, // Updated font weight
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
           ],
@@ -279,8 +289,10 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
         hintStyle: TextStyle(color: const Color(0xFF333742).withAlpha(150)),
         filled: true,
         fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
