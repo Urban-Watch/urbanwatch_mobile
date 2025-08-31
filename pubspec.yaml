@@ -42,8 +42,9 @@ dependencies:
   path_provider: ^2.0.11 # To find correct file paths on the device
   path: ^1.8.2 # For manipulating file paths
   flutter_dotenv: ^5.2.1
-  supabase_flutter: ^2.9.1
   google_fonts: ^6.2.1
+  shared_preferences: ^2.2.2 # For storing authentication data
+  provider: ^6.1.1 # For state management
 
 dev_dependencies:
   flutter_test:

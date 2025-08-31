@@ -1,13 +1,15 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:urbanwatch_mobile/providers/reports_provider.dart';
+import 'package:urbanwatch_mobile/providers/location_provider.dart';
+import 'package:urbanwatch_mobile/services/location_service.dart';
 import 'package:urbanwatch_mobile/screens/confirmation_screen.dart';
-import 'package:urbanwatch_mobile/widgets/app_drawer.dart'; // 1. Import the AppDrawer
+import 'package:urbanwatch_mobile/widgets/app_drawer.dart';
 
 class IssueDetailScreen extends StatefulWidget {
   final File imageFile;
@@ -45,8 +47,14 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
 
   /// Initializes the form fields automatically.
   Future<void> _initializeForm() async {
-    // Auto-fetch location if the image was taken with the camera
-    if (widget.imageSource == ImageSource.camera) {
+    // Get location from the provider or auto-fetch if from camera
+    final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+    
+    if (locationProvider.hasLocation) {
+      // Use pre-loaded location
+      _locationController.text = locationProvider.currentLocation!.address;
+    } else if (widget.imageSource == ImageSource.camera) {
+      // Auto-fetch location if the image was taken with the camera and no location available
       _getCurrentLocation();
     }
   }
@@ -55,50 +63,24 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
   Future<void> _getCurrentLocation() async {
     setState(() => _isLocationLoading = true);
     try {
-      // First, check for permissions
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          _locationController.text = 'Location permissions are denied.';
-          setState(() => _isLocationLoading = false);
-          return;
+      final locationProvider = Provider.of<LocationProvider>(context, listen: false);
+      
+      // Try to get location from provider first
+      if (locationProvider.hasLocation) {
+        _locationController.text = locationProvider.currentLocation!.address;
+      } else {
+        // Get fresh location
+        await locationProvider.getCurrentLocation();
+        if (locationProvider.hasLocation) {
+          _locationController.text = locationProvider.currentLocation!.address;
+        } else {
+          _locationController.text = 'Could not get location';
         }
       }
-      if (permission == LocationPermission.deniedForever) {
-        _locationController.text =
-            'Location permissions are permanently denied.';
-        setState(() => _isLocationLoading = false);
-        return;
-      }
-
-      // If permissions are granted, get the location
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      _locationController.text =
-          'Lat: ${position.latitude.toStringAsFixed(4)}, Lon: ${position.longitude.toStringAsFixed(4)}';
     } catch (e) {
       _locationController.text = 'Could not get location: $e';
     } finally {
       setState(() => _isLocationLoading = false);
-    }
-  }
-
-  /// Uploads an image file to Supabase Storage and returns the public URL.
-  Future<String?> _uploadImageToSupabase(File imageFile) async {
-    try {
-      final supabase = Supabase.instance.client;
-      final String fileName =
-          'public/${DateTime.now().millisecondsSinceEpoch}.jpg';
-      await supabase.storage.from('issues_bucket').upload(fileName, imageFile);
-      final String publicUrl = supabase.storage
-          .from('issues_bucket')
-          .getPublicUrl(fileName);
-      return publicUrl;
-    } catch (e) {
-      debugPrint("Error uploading image to Supabase: $e");
-      return null;
     }
   }
 
@@ -117,33 +99,70 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
 
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
+    final reportsProvider = Provider.of<ReportsProvider>(context, listen: false);
+    final locationProvider = Provider.of<LocationProvider>(context, listen: false);
 
     setState(() => _isSubmitting = true);
 
-    final imageUrl = await _uploadImageToSupabase(widget.imageFile);
+    try {
+      // Get current location for the API
+      LocationData? locationData = locationProvider.currentLocation;
+      
+      // If no location available, try to get it now
+      if (locationData == null) {
+        await locationProvider.getCurrentLocation();
+        locationData = locationProvider.currentLocation;
+        
+        if (locationData == null) {
+          // Use default coordinates if location fails
+          debugPrint('Location error: No location available');
+          locationData = LocationData(
+            latitude: 22.3149, // Default to IIT KGP coordinates as fallback
+            longitude: 87.3105,
+            address: 'Default location',
+          );
+        }
+      }
 
-    if (!mounted) return;
-
-    if (imageUrl != null) {
-      // TODO: Save all data to your database and get the real Report ID
-      debugPrint('Image uploaded successfully! URL: $imageUrl');
-
-      final now = DateTime.now();
-
-      navigator.pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => ConfirmationScreen(
-            // Using placeholder data for now
-            reportId: 'RE1234ABC256',
-            date: DateFormat.yMMMMd().format(now),
-            time: DateFormat.jm().format(now),
-          ),
-        ),
+      // Submit report using the API service
+      final success = await reportsProvider.submitReport(
+        imageFile: widget.imageFile,
+        lat: locationData.latitude,
+        lon: locationData.longitude,
+        address: locationData.address,
       );
-    } else {
+
+      if (!mounted) return;
+
+      if (success) {
+        final now = DateTime.now();
+        
+        // Navigate to confirmation screen
+        navigator.pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => ConfirmationScreen(
+              reportId: 'Submitted Successfully', // We'll get the actual ID from the API
+              date: DateFormat.yMMMMd().format(now),
+              time: DateFormat.jm().format(now),
+            ),
+          ),
+        );
+      } else {
+        // Show error from the provider
+        final errorMessage = reportsProvider.error ?? 'Failed to submit report';
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      
       scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('Image upload failed. Please try again.'),
+        SnackBar(
+          content: Text('An unexpected error occurred: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );

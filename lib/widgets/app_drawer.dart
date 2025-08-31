@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:urbanwatch_mobile/screens/my_reports_screen.dart'; // 1. Import the new screen
+import 'package:provider/provider.dart';
+import 'package:urbanwatch_mobile/providers/auth_provider.dart';
+import 'package:urbanwatch_mobile/screens/my_reports_screen.dart';
+import 'package:urbanwatch_mobile/screens/login_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -42,13 +45,85 @@ class AppDrawer extends StatelessWidget {
               ),
             ),
             onTap: () {
-              // 2. Navigate to the "Your Reports" screen
               Navigator.pop(context); // Close the drawer first
-              // Use pushReplacement to avoid stacking the same screen
-              Navigator.pushReplacement(
+              Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const MyReportsScreen()),
               );
+            },
+          ),
+          // Logout option
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            title: Text(
+              'Logout',
+              style: GoogleFonts.inter(
+                color: Colors.red.shade700,
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            leading: Icon(
+              Icons.logout,
+              color: Colors.red.shade700,
+            ),
+            onTap: () async {
+              Navigator.pop(context); // Close the drawer first
+              
+              // Show confirmation dialog
+              final shouldLogout = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Logout'),
+                  content: const Text('Are you sure you want to logout?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        print("Hello world Logout is pressed ");
+                        Navigator.pop(context, true);
+                      },
+                      child: Text(
+                        'Logout',
+                        style: TextStyle(color: Colors.red.shade700),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+              if (shouldLogout == true && context.mounted) {
+                try {
+                  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                  await authProvider.logout();
+                  
+                  // Debug logging
+                  print('🔐 AUTH: Logout completed, navigating to login screen');
+                  
+                  // Force navigation to login screen
+                  if (context.mounted) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      (Route<dynamic> route) => false,
+                    );
+                  }
+                } catch (e) {
+                  print('🔐 AUTH: Logout error: $e');
+                  // Show error message to user
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Logout failed: ${e.toString()}'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              }
             },
           ),
           // Add other drawer items here if needed

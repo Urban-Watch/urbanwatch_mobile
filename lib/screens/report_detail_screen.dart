@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:urbanwatch_mobile/models/report_model.dart';
-import 'package:urbanwatch_mobile/widgets/report_card.dart'; // For the status enum
+import 'package:urbanwatch_mobile/models/api_models.dart';
+import 'package:urbanwatch_mobile/widgets/report_card.dart';
 
 class ReportDetailScreen extends StatelessWidget {
   final Report report;
@@ -11,28 +11,24 @@ class ReportDetailScreen extends StatelessWidget {
   // Helper method to get the color based on the status
   Color _getStatusColor() {
     switch (report.status) {
-      case ReportStatus.Unresolved:
+      case ReportStatus.unresolved:
         return const Color(0xFFF8D7DA); // Light Red
-      case ReportStatus.InProgress:
+      case ReportStatus.inProgress:
         return const Color(0xFFFFF3CD); // Light Yellow
-      case ReportStatus.Resolved:
+      case ReportStatus.resolved:
         return const Color(0xFFD4EDDA); // Light Green
-      default:
-        return Colors.grey;
     }
   }
 
   // Helper method to get the text color for the status
   Color _getStatusTextColor() {
     switch (report.status) {
-      case ReportStatus.Unresolved:
+      case ReportStatus.unresolved:
         return const Color(0xFFD7524D); // Dark Red
-      case ReportStatus.InProgress:
+      case ReportStatus.inProgress:
         return const Color.fromARGB(255, 223, 174, 29); // Dark Yellow
-      case ReportStatus.Resolved:
+      case ReportStatus.resolved:
         return const Color.fromARGB(255, 32, 182, 67); // Dark Green
-      default:
-        return Colors.black;
     }
   }
 
@@ -56,111 +52,124 @@ class ReportDetailScreen extends StatelessWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: textColor),
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      body: SafeArea(
         child: Column(
           children: [
             Expanded(
               child: SingleChildScrollView(
-                child: Container(
-                  padding: const EdgeInsets.all(16.0),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12.0),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${report.id}.',
-                            style: GoogleFonts.inter(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  report.title,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${report.date}, ${report.time}',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              report.status.name,
-                              style: GoogleFonts.inter(
-                                color: _getStatusTextColor(),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Report Card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12.0),
+                        border: Border.all(color: Colors.grey.shade300),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.1),
+                            spreadRadius: 1,
+                            blurRadius: 3,
+                            offset: const Offset(0, 1),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12.0),
-                        child: Image.network(
-                          report.imageUrl,
-                          height: 200,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          // Placeholder and error widgets are good practice
-                          loadingBuilder: (context, child, progress) {
-                            if (progress == null) return child;
-                            return const Center(child: CircularProgressIndicator());
-                          },
-                          // --- THIS IS THE FIX ---
-                          // Renamed 'errorWidget' to the correct 'errorBuilder'
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              height: 200,
-                              color: Colors.grey.shade300,
-                              child: const Center(child: Text('Image not available')),
-                            );
-                          },
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      report.title,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${report.date}, ${report.time}',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: _getStatusColor(),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  report.status.name,
+                                  style: GoogleFonts.inter(
+                                    color: _getStatusTextColor(),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          // Image
+                          Container(
+                            height: 200,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              color: Colors.grey.shade100,
+                            ),
+                            child: report.imageUrl.isNotEmpty
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      report.imageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Container(
+                                          color: Colors.grey.shade300,
+                                          child: const Center(child: Text('Image not available')),
+                                        );
+                                      },
+                                    ),
+                                  )
+                                : Container(
+                                    color: Colors.grey.shade300,
+                                    child: const Center(child: Text('Image not available')),
+                                  ),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildDetailRow('Location :', report.location.address),
+                          const SizedBox(height: 12),
+                          _buildDetailRow('Description :', 
+                            report.description.trim().isNotEmpty ? report.description : 'No description available'),
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const SizedBox(height: 16),
+                          _buildCriticalityScore(report.criticalityScore),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      _buildDetailRow('Location :', report.location),
-                      const SizedBox(height: 12),
-                      _buildDetailRow('Description :', report.description),
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 16),
-                      _buildCriticalityScore(report.criticalityScore),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
+            // Back button with proper spacing
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24.0),
+              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

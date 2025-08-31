@@ -1,55 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:urbanwatch_mobile/main.dart';
-import 'package:urbanwatch_mobile/models/report_model.dart';
+import 'package:urbanwatch_mobile/providers/reports_provider.dart';
 import 'package:urbanwatch_mobile/screens/report_detail_screen.dart';
 import 'package:urbanwatch_mobile/widgets/app_drawer.dart';
 import 'package:urbanwatch_mobile/widgets/report_card.dart';
 
-class MyReportsScreen extends StatelessWidget {
+class MyReportsScreen extends StatefulWidget {
   const MyReportsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // --- THIS IS THE FIX ---
-    // Updated placeholder data to use the Report model
-    final List<Report> reports = [
-      Report(
-        id: 1,
-        title: 'Deep Pothole Near School',
-        location: 'D130 RK hall of residence, IIT KGP, Kharagpur 721302',
-        date: '20 August 2025',
-        time: '9:56 AM',
-        status: ReportStatus.Unresolved,
-        imageUrl: 'https://placehold.co/600x400/cccccc/000000?text=Issue+Image',
-        description: 'A large and dangerous pothole has formed on the main road just outside the school gate. It poses a significant risk to students and vehicles.',
-        criticalityScore: 82,
-      ),
-      Report(
-        id: 2,
-        title: 'Broken Streetlight',
-        location: 'Park Avenue',
-        date: '17 August 2025',
-        time: '11:00 PM',
-        status: ReportStatus.InProgress,
-        imageUrl: 'https://placehold.co/600x400/cccccc/000000?text=Issue+Image',
-        description: 'The streetlight on the corner of Park Avenue has been out for three days, making the area very dark and unsafe at night.',
-        criticalityScore: 65,
-      ),
-      Report(
-        id: 3,
-        title: 'Overflowing Dumpster',
-        location: 'Oak Lane',
-        date: '15 August 2025',
-        time: '2:15 PM',
-        status: ReportStatus.Resolved,
-        imageUrl: 'https://placehold.co/600x400/cccccc/000000?text=Issue+Image',
-        description: 'The public dumpster on Oak Lane is overflowing with trash, causing a foul smell and attracting pests.',
-        criticalityScore: 70,
-      ),
-    ];
+  State<MyReportsScreen> createState() => _MyReportsScreenState();
+}
 
-    const Color backgroundColor = Color.fromARGB(255, 252, 252, 252); // Using consistent background color
+class _MyReportsScreenState extends State<MyReportsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Fetch reports when the screen loads with force refresh
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ReportsProvider>(context, listen: false).fetchReports(forceRefresh: true);
+    });
+  }
+
+  // Add refresh method
+  Future<void> _onRefresh() async {
+    await Provider.of<ReportsProvider>(context, listen: false).fetchReports(forceRefresh: true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const Color backgroundColor = Color.fromARGB(255, 252, 252, 252);
     const Color textColor = Color.fromARGB(255, 0, 0, 0);
     const Color buttonColor = Color(0xFF000000);
 
@@ -69,67 +51,191 @@ class MyReportsScreen extends StatelessWidget {
         iconTheme: const IconThemeData(color: textColor),
       ),
       drawer: const AppDrawer(),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            Expanded(
-              child: ListView.builder(
-                itemCount: reports.length,
-                itemBuilder: (context, index) {
-                  final report = reports[index];
-                  // --- THIS IS THE FIX ---
-                  // Wrapped ReportCard with GestureDetector to make it clickable
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ReportDetailScreen(report: report),
-                        ),
-                      );
-                    },
-                    child: ReportCard(
-                      index: report.id,
-                      title: report.title,
-                      location: report.location,
-                      submissionDate: report.date,
-                      submissionTime: report.time,
-                      status: report.status,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Consumer<ReportsProvider>(
+          builder: (context, reportsProvider, child) {
+            if (reportsProvider.isLoading && reportsProvider.reports.isEmpty) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+
+            if (reportsProvider.error != null && reportsProvider.reports.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red.shade400,
                     ),
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (context) => const ReportLauncherScreen()),
-                      (Route<dynamic> route) => false,
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: buttonColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error loading reports',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                      ),
                     ),
-                    textStyle: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                    const SizedBox(height: 8),
+                    Text(
+                      reportsProvider.error!,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: Colors.red.shade600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        reportsProvider.fetchReports();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: buttonColor,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            if (reportsProvider.reports.isEmpty) {
+              return Column(
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.report_outlined,
+                            size: 64,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No reports yet',
+                            style: GoogleFonts.inter(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Start reporting issues in your community',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: textColor.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  child: const Text('Back'),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 20.0, bottom: 40.0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: buttonColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          textStyle: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        child: const Text('Back'),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            return Column(
+              children: [
+                const SizedBox(height: 16),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _onRefresh,
+                    child: ListView.builder(
+                      itemCount: reportsProvider.reports.length + (reportsProvider.isLoading ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == reportsProvider.reports.length) {
+                          // Loading indicator at the bottom
+                          return const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+
+                        final report = reportsProvider.reports[index];
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ReportDetailScreen(report: report),
+                              ),
+                            );
+                          },
+                          child: ReportCard(
+                            index: report.id,
+                            title: report.title,
+                            location: report.location.address,
+                            submissionDate: report.date,
+                            submissionTime: report.time,
+                            status: report.status,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
+                Padding(
+                  padding: const EdgeInsets.only(top: 20.0, bottom: 40.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: buttonColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        textStyle: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      child: const Text('Back'),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
         ),
       ),
     );

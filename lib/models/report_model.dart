@@ -1,5 +1,8 @@
-import 'package:urbanwatch_mobile/widgets/report_card.dart'; // We need this for the ReportStatus enum
+// DEPRECATED: Use api_models.dart instead
+// This file is kept for backward compatibility only
+import 'package:urbanwatch_mobile/widgets/report_card.dart';
 
+@deprecated
 class Report {
   final int id;
   final String title;
